@@ -1,0 +1,21 @@
+"""Shared physical constants used across the simulation package."""
+
+import math
+
+G0 = 9.80665
+R_AIR = 287.053
+GAMMA_AIR = 1.4
+T0 = 288.15
+P0 = 101325.0
+MU0 = 1.81e-5
+SUTHERLAND_C = 110.4
+
+TROPOSPHERE_TOP = 11000.0
+TROPOPAUSE_TOP = 20000.0
+LOWER_STRATOSPHERE_TOP = 32000.0
+
+LAPSE_TROPOSPHERE = -0.0065
+LAPSE_STRATOSPHERE = 0.0010
+
+SEA_LEVEL_DENSITY = 1.225
+PI = math.pi
