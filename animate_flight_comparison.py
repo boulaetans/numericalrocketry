@@ -257,7 +257,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", default="assets/flight_comparison.gif")
     parser.add_argument("--fps", type=int, default=20)
-    parser.add_argument("--playback-seconds", type=float, default=16.0, help="Real-world seconds the main sweep takes to play")
+    parser.add_argument("--playback-seconds", type=float, default=None, help="Real-world seconds the main sweep takes to play (default: real time, i.e. one second of playback per second of flight)")
     parser.add_argument("--hold-seconds", type=float, default=5.0, help="Pause after the last touchdown before the GIF loops")
     args = parser.parse_args()
 
@@ -284,7 +284,8 @@ def main() -> None:
     t_max = max(track["events"]["touchdown"] or track["times"][-1] for track in tracks)
     z_max = max(track["altitudes"].max() for track in tracks)
 
-    t_schedule = build_time_schedule(t_min, t_max, args.fps, args.playback_seconds, args.hold_seconds)
+    playback_seconds = args.playback_seconds if args.playback_seconds is not None else (t_max - t_min)
+    t_schedule = build_time_schedule(t_min, t_max, args.fps, playback_seconds, args.hold_seconds)
 
     fig = plt.figure(figsize=(10, 7), dpi=130)
     ax = fig.add_subplot(111, projection="3d")
