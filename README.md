@@ -18,7 +18,9 @@ This isn't a general-purpose simulator: the geometry, mass table, and motor are 
 
 ## Background
 
-This project started as an honors contract requirement for MAT-2 (Differential Equations), applying numerical methods for ODEs — Runge-Kutta integration in particular — to a real physical system with genuinely nonlinear, discontinuous forcing (thrust curves, aerodynamic stall, parachute deployment) rather than a textbook closed-form problem. Rigid-body flight dynamics has no closed-form solution, which is exactly the kind of case numerical ODE methods exist for. The rotational and translational equations of motion are integrated with a fixed-stage RK4 scheme (`k1`-`k4` per step) combined with adaptive step-size selection — the step size shrinks around ignition, burnout, and other fast-changing-force events, and grows during smoother coasting, rather than using a single fixed `dt` for the whole flight.
+This project started as an honors contract requirement for MAT-2 (Differential Equations). Since the dawn of the space age, numerical methods have played a defining role in rocket development by enabling engineers to model trajectories long before physical testing — many governing equations in flight dynamics simply lack closed-form solutions, which is exactly the kind of case numerical methods exist for. This project applies those same numerical techniques to small-scale rocket flight: it extends a previously verified 1D ascent simulator — preserved and adapted with this rocket's real geometry in [`legacy/`](legacy/), rather than thrown away — into a full 3D Python-based flight simulation with explicit geometry, event-aware dynamics, and atmospheric modeling.
+
+The rotational and translational equations of motion are integrated with a fixed-stage RK4 scheme (`k1`-`k4` per step) combined with adaptive step-size control — the step size shrinks around ignition, burnout, and other fast-changing-force events, and grows during smoother coasting, rather than using a single fixed `dt` for the whole flight.
 
 The full project abstract, written for that coursework, is in [`docs/abstract.pdf`](docs/abstract.pdf).
 
@@ -42,6 +44,10 @@ The real flight's touchdown time is *(est.)* rather than read straight from the 
 
 The real flight's max velocity is notably *lower* than either simulation despite reaching a *higher* apogee, which doesn't add up physically for a launch on the same motor — most likely a sensor filtering/lag artifact (the same log shows a demonstrated multi-second lag around touchdown), not a genuine performance difference. Shown as reported, not corrected for.
 
+**Why the real flight's apogee reads ~9% higher than either simulation.** A single real flight diverging from simulation by a few percent — sometimes more — is a well-known theme in amateur rocketry validation, not a red flag by itself: individual motors vary batch to batch within their certification tolerance, an as-built rocket rarely masses exactly what its design file says, and launch-day atmospheric conditions are never quite the standard atmosphere both simulations assume. One real flight is one noisy sample, not a controlled repeat measurement.
+
+More specifically here, though: this project's own simulator and OpenRocket — two independently built physics engines — agree with each other to within 0.04%. For a shared modeling error to explain the real-flight gap, both would have to be wrong by ~9% in the same direction, which is a much bigger coincidence than the far simpler explanation that the gap sits on the one-real-flight, one-sensor side of the comparison. That's supported directly by this log's own data, not just inferred: its reported flight state (`boost`/`coast`/`main`/`landed`) doesn't match the real physical events at all (see above), and its `height` and `altitude` columns — two onboard estimates of the same quantity — disagree with each other at the same instant. A barometric altimeter is also specifically prone to *dynamic-pressure error*: a fast-moving rocket creates a local low-pressure region right at the sensor's port (a Bernoulli effect), which a cheap altimeter can misread as extra altitude — worse the faster the rocket is moving, and in the same direction as what's shown here. Nothing to fix in the simulator itself; a genuinely interesting real-world finding about the limits of a low-cost flight computer, not a bug.
+
 The most interesting real-world finding: **the real flight's descent took almost twice as long as either simulation** (~41 s vs. ~27 s), even though apogee time and altitude are all close across the three — worth digging into if descent/parachute-drag modeling ever becomes a focus.
 
 ### Simulation accuracy vs. OpenRocket
@@ -54,6 +60,8 @@ The numbers behind the claim — apogee, peak velocity, and touchdown, compared 
 | Apogee time | 4.7663 s | 4.766 s | ~1 ms |
 | Max velocity | 45.53 m/s | 45.53 m/s | ~0.005 m/s (0.01%) |
 | Touchdown | 27.116 s | 27.194 s | -0.08 s (0.29%) |
+
+Every event, including the internal validation metrics (rail clear, recovery deploy, liftoff mass, CG) that don't fit here, is in [`data/results.md`](data/results.md).
 
 ## Getting started
 
@@ -124,9 +132,12 @@ numericalrocketry/
 │   │   └── state.py                   # Simulation state dataclasses
 │   └── motors/
 │       └── estes_c11.eng             # RASP motor data (thrust curve, mass)
-├── data/                         # reference/input data: the .ork design file + both reference flight logs
+├── data/                         # reference/input data (.ork design file, both flight logs) + results.md (full data table)
 ├── assets/                       # the comparison GIF and static plot
 ├── docs/                         # the project abstract
+├── legacy/                       # the original 1D numerical-methods simulator this project grew from
+│   ├── legacy_1d_simulator.py      # Euler / ABM-2 / RK4 comparison, adapted with Green Eggs' real geometry
+│   └── comparison.md               # how the 1D model stacks up against the rest of the project
 ├── run_simulation.py             # entry point: runs the 6DOF simulation
 ├── animate_flight_comparison.py  # entry point: generates the 3-way comparison GIF
 ├── plot_flight_comparison.py     # entry point: generates the static comparison plot
