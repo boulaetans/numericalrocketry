@@ -3,26 +3,28 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)
 
-A standalone Python 6DOF rocket flight simulator built to reproduce **OpenRocket's actual physics as closely as possible**, for one specific real rocket — **"Green Eggs"**, flying a real Estes C11-5 motor.
+A standalone Python 6DOF rocket flight simulator built to reproduce OpenRocket’s simulation results for one specific real rocket, “Green Eggs”, flying a real Estes C11-5 motor.
 
-This isn't a general-purpose simulator: the geometry, mass table, and motor are hardcoded for this one design. The goal is a reproduction of OpenRocket's implementation. It's a personal/research project and learning exercise in understanding OpenRocket by rebuilding it.
+This isn't a general-purpose simulator: the geometry, mass table, and motor are hardcoded for this one design. The goal is an independent Python reimplementation of the rocket-flight physics used by OpenRocket, developed by studying its open-source implementation and validating the results against OpenRocket. It's a personal/research project and learning exercise.
 
 ## Table of contents
 
-- [Background](#background)
-- [Results](#results)
-- [Getting started](#getting-started)
-- [Usage](#usage)
-- [Project structure](#project-structure)
-- [License](#license)
+* [Background](#background)
+* [Results](#results)
+* [Getting started](#getting-started)
+* [Usage](#usage)
+* [Project structure](#project-structure)
+* [License](#license)
 
 ## Background
 
-This project started as an honors contract requirement for MAT-2 (Differential Equations). Since the dawn of the space age, numerical methods have played a defining role in rocket development by enabling engineers to model trajectories long before physical testing — many governing equations in flight dynamics simply lack closed-form solutions, which is exactly the kind of case numerical methods exist for. This project applies those same numerical techniques to small-scale rocket flight: it extends a previously verified 1D ascent simulator — preserved and adapted with this rocket's real geometry in [`legacy/`](legacy/), rather than thrown away — into a full 3D Python-based flight simulation with explicit geometry, event-aware dynamics, and atmospheric modeling.
+This project started as an honors contract requirement for MAT-2 (Differential Equations). Since the dawn of the space age, numerical methods have played a defining role in rocket development by enabling engineers to model trajectories long before physical testing. Many governing equations in flight dynamics simply lack closed-form solutions, which is exactly the kind of case numerical methods exist for. This project applies those same numerical techniques to small-scale rocket flight. It extends a previously verified 1D ascent simulator, preserved and adapted with this rocket's real geometry in [`legacy/`](legacy/), into a full 3D Python-based flight simulation with explicit geometry, event-aware dynamics, and atmospheric modeling.
 
-The rotational and translational equations of motion are integrated with a fixed-stage RK4 scheme (`k1`-`k4` per step) combined with adaptive step-size control — the step size shrinks around ignition, burnout, and other fast-changing-force events, and grows during smoother coasting, rather than using a single fixed `dt` for the whole flight.
+The rotational and translational equations of motion are integrated with a fixed-stage RK4 scheme (`k1`-`k4` per step) combined with adaptive step-size control. The step size shrinks around ignition, burnout, and other fast-changing-force events, then grows during smoother coasting instead of using a single fixed `dt` for the whole flight.
 
-The full project abstract, written for that coursework, is in [`docs/abstract.pdf`](docs/abstract.pdf).
+**How much did the full 3D rewrite actually buy over the original 1D model?** Run head-to-head on this same rocket and motor, the 1D model's own RK4 branch gets apogee within 2.00% of OpenRocket's reference simulation (99.27 m vs. 101.29 m), a reasonable result for a model with no attitude dynamics, no exact Barrowman CP/stability treatment, and a simplified drag model. This project's full 6DOF result closes about 98% of that remaining gap, landing within 0.04% of OpenRocket, roughly a 50× reduction in apogee error. Unlike the 1D model, it produces a stability margin, off-axis motion, and a modeled recovery/descent phase at all. Full breakdown, plots, and how each integrator does individually in [`legacy/comparison.md`](legacy/comparison.md).
+
+The full project abstract is in [`docs/abstract.pdf`](docs/abstract.pdf).
 
 ## Results
 
@@ -34,34 +36,34 @@ Quick look, no animation required:
 
 ![Static altitude-vs-time comparison of all three flights](assets/flight_comparison.png)
 
-| | NumericalRocketry (sim) | OpenRocket (reference sim) | Real Flight (logged) |
-| --- | --- | --- | --- |
-| Apogee | t = 4.77 s, 101.25 m AGL | t = 4.77 s, 101.29 m AGL | t = 4.76 s, 111.2 m AGL |
-| Max velocity | 45.5 m/s | 45.5 m/s | 35.4 m/s *(see note)* |
-| Touchdown | t = 27.12 s | t = 27.19 s | t ≈ 41.06 s *(est.)* |
+|              | NumericalRocketry (sim)  | OpenRocket (reference sim) | Real Flight (logged)    |
+| ------------ | ------------------------ | -------------------------- | ----------------------- |
+| Apogee       | t = 4.77 s, 101.25 m AGL | t = 4.77 s, 101.29 m AGL   | t = 4.76 s, 111.2 m AGL |
+| Max velocity | 45.5 m/s                 | 45.5 m/s                   | 35.4 m/s *(see note)*   |
+| Touchdown    | t = 27.12 s              | t = 27.19 s                | t ≈ 41.06 s *(est.)*    |
 
-The real flight's touchdown time is *(est.)* rather than read straight from the log — that log's `boost`/`coast`/`main`/`landed` labels turned out not to match the real physical events for this flight (checked directly against the raw sensor samples: e.g. `landed` doesn't trigger until 53.69s even though speed and altitude both settle by ~41s). The value shown is instead the first point after apogee where speed sustainedly settles near zero. See `load_real_flight_track()` in [`animate_flight_comparison.py`](animate_flight_comparison.py) for the exact method.
+The real flight's touchdown time is *(est.)* rather than read straight from the log. That log's `boost`/`coast`/`main`/`landed` labels turned out not to match the real physical events for this flight (checked directly against the raw sensor samples: e.g. `landed` doesn't trigger until 53.69s even though speed and altitude both settle by ~41s). The value shown is instead the first point after apogee where speed sustainedly settles near zero. See `load_real_flight_track()` in [`animate_flight_comparison.py`](animate_flight_comparison.py) for the exact method.
 
-The real flight's max velocity is notably *lower* than either simulation despite reaching a *higher* apogee, which doesn't add up physically for a launch on the same motor — most likely a sensor filtering/lag artifact (the same log shows a demonstrated multi-second lag around touchdown), not a genuine performance difference. Shown as reported, not corrected for.
+The real flight's max velocity is notably *lower* than either simulation despite reaching a *higher* apogee. That does not make much physical sense for a launch on the same motor, so a sensor filtering or lag artifact is the most likely explanation (the same log shows a demonstrated multi-second lag around touchdown), not a genuine performance difference. Shown as reported, not corrected for.
 
-**Why the real flight's apogee reads ~9% higher than either simulation.** A single real flight diverging from simulation by a few percent — sometimes more — is a well-known theme in amateur rocketry validation, not a red flag by itself: individual motors vary batch to batch within their certification tolerance, an as-built rocket rarely masses exactly what its design file says, and launch-day atmospheric conditions are never quite the standard atmosphere both simulations assume. One real flight is one noisy sample, not a controlled repeat measurement.
+**Why the real flight's apogee reads ~9% higher than either simulation.** A single real flight diverging from simulation by a few percent, sometimes more, is a common issue in amateur rocketry validation, and not a red flag by itself. Individual motors vary batch to batch within their certification tolerance, an as-built rocket rarely masses exactly what its design file says, and launch-day atmospheric conditions are never quite the standard atmosphere both simulations assume. One real flight is one noisy sample, not a controlled repeat measurement.
 
-More specifically here, though: this project's own simulator and OpenRocket — two independently built physics engines — agree with each other to within 0.04%. For a shared modeling error to explain the real-flight gap, both would have to be wrong by ~9% in the same direction, which is a much bigger coincidence than the far simpler explanation that the gap sits on the one-real-flight, one-sensor side of the comparison. That's supported directly by this log's own data, not just inferred: its reported flight state (`boost`/`coast`/`main`/`landed`) doesn't match the real physical events at all (see above), and its `height` and `altitude` columns — two onboard estimates of the same quantity — disagree with each other at the same instant. A barometric altimeter is also specifically prone to *dynamic-pressure error*: a fast-moving rocket creates a local low-pressure region right at the sensor's port (a Bernoulli effect), which a cheap altimeter can misread as extra altitude — worse the faster the rocket is moving, and in the same direction as what's shown here. Nothing to fix in the simulator itself; a genuinely interesting real-world finding about the limits of a low-cost flight computer, not a bug.
+More specifically here, though: this project's own simulator and OpenRocket, two independently built physics engines, agree with each other to within 0.04%. For a shared modeling error to explain the real-flight gap, both would have to be wrong by ~9% in the same direction. It is much more likely that the gap comes from having only one real flight and one set of sensor data. That's supported directly by this log's own data, not just inferred: its reported flight state (`boost`/`coast`/`main`/`landed`) doesn't match the real physical events at all (see above), and its `height` and `altitude` columns, two onboard estimates of the same quantity, disagree with each other at the same instant. A barometric altimeter is also specifically prone to *dynamic-pressure error*: a fast-moving rocket creates a local low-pressure region right at the sensor's port (a Bernoulli effect), which a cheap altimeter can misread as extra altitude, especially at higher speeds, and in the same direction as what's shown here. There is nothing to fix in the simulator based on this result. It is an interesting real-world finding about the limits of a low-cost flight computer, not a simulator bug.
 
-The most interesting real-world finding: **the real flight's descent took almost twice as long as either simulation** (~41 s vs. ~27 s), even though apogee time and altitude are all close across the three — worth digging into if descent/parachute-drag modeling ever becomes a focus.
+The most interesting real-world finding: **the real flight's descent took almost twice as long as either simulation** (~41 s vs. ~27 s), even though apogee time and altitude are all close across the three. This is worth looking into if descent and parachute-drag modeling become a focus later.
 
 ### Simulation accuracy vs. OpenRocket
 
-The numbers behind the claim — apogee, peak velocity, and touchdown, compared directly against OpenRocket's own simulation of the identical rocket/motor/conditions.
+These are the apogee, peak velocity, and touchdown results compared directly with OpenRocket's simulation of the same rocket, motor, and conditions.
 
-| Metric | NumericalRocketry | OpenRocket | Gap |
-| --- | --- | --- | --- |
-| Apogee altitude | 101.25 m | 101.29 m | -0.04 m (0.04%) |
-| Apogee time | 4.7663 s | 4.766 s | ~1 ms |
-| Max velocity | 45.53 m/s | 45.53 m/s | ~0.005 m/s (0.01%) |
-| Touchdown | 27.116 s | 27.194 s | -0.08 s (0.29%) |
+| Metric          | NumericalRocketry | OpenRocket | Gap                |
+| --------------- | ----------------- | ---------- | ------------------ |
+| Apogee altitude | 101.25 m          | 101.29 m   | -0.04 m (0.04%)    |
+| Apogee time     | 4.7663 s          | 4.766 s    | ~1 ms              |
+| Max velocity    | 45.53 m/s         | 45.53 m/s  | ~0.005 m/s (0.01%) |
+| Touchdown       | 27.116 s          | 27.194 s   | -0.08 s (0.29%)    |
 
-Every event, including the internal validation metrics (rail clear, recovery deploy, liftoff mass, CG) that don't fit here, is in [`data/results.md`](data/results.md).
+Every event, including internal validation metrics such as rail clear, recovery deploy, liftoff mass, and CG, is in [`data/results.md`](data/results.md).
 
 ## Getting started
 
@@ -84,28 +86,34 @@ pip install -e .
 ## Usage
 
 Run the simulation:
+
 ```sh
 python run_simulation.py
 ```
+
 Prints the mission-event timeline and writes `simulation_results.csv`.
 
 Regenerate the 3D comparison animation:
+
 ```sh
 python animate_flight_comparison.py
 ```
+
 Writes `assets/flight_comparison.gif` by default.
 
-| Flag | Default | Meaning |
-| --- | --- | --- |
-| `--output` | `assets/flight_comparison.gif` | Output file path |
-| `--fps` | `20` | Frames per second |
-| `--playback-seconds` | real time | How long the main sweep takes to play (defaults to actual flight duration, ~41.7 s) |
-| `--hold-seconds` | `5.0` | Pause after the last touchdown before the GIF loops |
+| Flag                 | Default                        | Meaning                                                                             |
+| -------------------- | ------------------------------ | ----------------------------------------------------------------------------------- |
+| `--output`           | `assets/flight_comparison.gif` | Output file path                                                                    |
+| `--fps`              | `20`                           | Frames per second                                                                   |
+| `--playback-seconds` | real time                      | How long the main sweep takes to play (defaults to actual flight duration, ~41.7 s) |
+| `--hold-seconds`     | `5.0`                          | Pause after the last touchdown before the GIF loops                                 |
 
 Regenerate the static comparison plot:
+
 ```sh
 python plot_flight_comparison.py
 ```
+
 Writes `assets/flight_comparison.png` by default (`--output` to change it).
 
 ## Project structure

@@ -23,8 +23,9 @@ ROUGHNESS_HEIGHT_M = {
 
 
 def _roughness_correction(mach: float) -> float:
-    """Compressibility correction for the roughness-limited Cf, ported from
-    BarrowmanDragCalculator.calculateRoughnessCorrection()."""
+    """Compressibility correction for the roughness-limited skin-friction
+    coefficient, following the transonic blend of the Barrowman drag model
+    (see Niskanen, 2013, OpenRocket Technical Documentation, Sec. 3.4)."""
     if mach < 0.9:
         return 1.0 - 0.1 * mach ** 2
     if mach > 1.1:
