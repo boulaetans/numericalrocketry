@@ -5,13 +5,14 @@ into a full 3D Python-based flight simulation"). This is that simulator.
 Only two things were changed from the original: the geometry/motor constants below now match
 Green Eggs and its real Estes C11 motor (they originally described a different rocket entirely,
 on a Quest C18W motor), and atmosphere lookups now account for the real 512 m launch-site
-elevation (the original assumed a sea-level pad). Everything else -- the drag model, the three
-integrators, the comparison methodology -- is unchanged from the original coursework. It still
-has no aerodynamic-attitude modeling, no wind, and no recovery system (it free-falls under drag
-after apogee, same as the original) -- it was never meant to be a full flight simulator, and
+elevation (the original assumed a sea-level pad). Everything else, including the drag model, the
+three integrators, and the comparison methodology, is unchanged from the original coursework. It
+still has no aerodynamic-attitude modeling, no wind, and no recovery system (it free-falls under
+drag after apogee, same as the original); it was never meant to be a full flight simulator, and
 isn't compared against the rest of this project past apogee for exactly that reason.
 
-Run this to reproduce (writes three PNGs into legacy/ and prints the metrics table):
+Run this to reproduce (writes comparison.png and comparison_interactive.html into legacy/,
+and prints the metrics table):
     .venv\\Scripts\\python.exe legacy/legacy_1d_simulator.py
 """
 
@@ -40,7 +41,7 @@ S_ref = math.pi * (D/2)**2  # reference area (frontal) [1: p. 52]
 nose_type = 'elliptical'  # 'conical','ogive','von_karman','elliptical','parabolic','hemisphere'
 fin_cross_section = 'rounded'# 'airfoil','rounded','square'
 
-# Real launch-site elevation (512 m MSL) -- the original file assumed a sea-level pad.
+# Real launch-site elevation (512 m MSL). The original file assumed a sea-level pad.
 SITE_ALTITUDE_M = 512.0
 
 
@@ -408,8 +409,8 @@ def total_Cd(v, h, powered=True, surface_finish='unfinished'):
 
 # ==========================================
 # THRUST CURVE [7]
-# Real Estes C11 data (src/numericalrocketry/motors/estes_c11.eng), the motor actually flown --
-# the original file used a Quest C18W curve for its own (different) rocket.
+# Real Estes C11 data (src/numericalrocketry/motors/estes_c11.eng), the motor actually flown.
+# The original file used a Quest C18W curve for its own (different) rocket.
 # ==========================================
 thrust_data = np.array([
     [0.034, 1.692], [0.066, 3.782], [0.107, 7.566], [0.145, 10.946],
@@ -554,7 +555,7 @@ def run_adams_bashforth_moulton(dt, max_time):
     h_list = [h0]
     a_list = [a0]
 
-    # --- Euler startup to get (t1, v1, h1) ---
+    # Euler startup to get (t1, v1, h1).
     if a0 < 0 and not liftoff:
         v1 = 0.0
         h1 = 0.0
@@ -747,7 +748,7 @@ p_t, p_h, p_v, p_a = run_adams_bashforth_moulton(dt, max_time)
 r_t, r_h, r_v, r_a = run_rk4(dt, max_time)
 
 # Print metrics table
-print('\nIntegrator metrics (Green Eggs geometry/motor, ascent + ballistic fall -- no recovery):')
+print('\nIntegrator metrics (Green Eggs geometry/motor, ascent + ballistic fall, no recovery):')
 print(f"{'Integrator':<22}{'Apogee (m)':>12}{'Max Vel (m/s)':>16}{'Max Accel (m/s²)':>20}{'T_to_Apogee(s)':>18}{'Flight Time(s)':>16}")
 print('-' * 100)
 
@@ -776,68 +777,165 @@ r_ft = r_t[-1]
 print(f"{'RK4':<22}{r_apogee:12.3f}{r_maxv:16.3f}{r_maxa:20.3f}{r_tap:18.3f}{r_ft:16.3f}")
 
 # ==========================================
-# COMPARISON PLOTS: Altitude, Velocity, Acceleration (Separate Figures)
+# COMPARISON PLOT: Altitude, Velocity, Acceleration on one plot, two y-axes,
+# matching the layout and encoding of the project's main
+# assets/flight_comparison.png (see plot_flight_comparison.py's module
+# docstring for why: this mirrors how OpenRocket's own plot view handles
+# multiple quantities, confirmed against its docs). Altitude gets the left
+# axis; velocity and acceleration share the right axis. Line style tells
+# the three quantities apart (solid/dashed/dotted); color tells the three
+# integrators apart.
+#
+# The three integrators trace almost exactly on top of each other (within
+# 0.1% of apogee, see comparison.md), so a fully opaque line drawn later
+# would completely hide the ones drawn earlier wherever they coincide.
+# Each line is drawn at partial alpha (overlapping colors visibly blend
+# instead of one erasing the others) and progressively narrower by draw
+# order, so Euler (drawn first, widest) forms a visible halo around ABM-2,
+# which in turn forms one around RK4 (drawn last, narrowest, on top). Each
+# integrator's apogee is marked with an X and a label, in that integrator's
+# own color, matching the event markers already shown in the project's main
+# animated GIF.
 # ==========================================
 import os
+import matplotlib.patheffects as pe
+from matplotlib.lines import Line2D
+
 _here = os.path.dirname(os.path.abspath(__file__))
 
-# Figure 1: Altitude vs Time
-fig1, ax1 = plt.subplots(1, 1, figsize=(12, 8))
-ax1.set_xlabel('Time (s)', fontsize=12, fontweight='bold')
-ax1.set_ylabel('Altitude (m)', fontsize=12, fontweight='bold')
-ax1.set_title('Rocket Flight Simulation: Altitude Comparison\nNumerical Methods',
-              fontsize=14, fontweight='bold', pad=20)
+INTEGRATORS = [
+    ("Euler", e_t, e_h, e_v, e_a, "#2a78d6", 0.9),
+    ("ABM-2", p_t, p_h, p_v, p_a, "#eb6834", 0.3),
+    ("RK4", r_t, r_h, r_v, r_a, "#1baf7a", 0.0),
+]
+LEFT_AXIS_QUANTITIES = {
+    "altitude": {"idx": 0, "label": "Altitude (m)", "lw": 2.0, "dashes": None, "capstyle": "butt"},
+}
+RIGHT_AXIS_QUANTITIES = {
+    "velocity": {"idx": 1, "label": "Velocity (m/s)", "lw": 2.1, "dashes": (6, 2.5), "capstyle": "butt"},
+    "acceleration": {"idx": 2, "label": "Acceleration (m/s²)", "lw": 2.8, "dashes": (0.1, 2.4), "capstyle": "round"},
+}
+LINE_ALPHA = 0.78
 
-# Altitude - solid lines
-ax1.plot(e_t, e_h, label='Euler', linewidth=3, color='#1f77b4', linestyle='-')
-ax1.plot(p_t, p_h, label='ABM-2', linewidth=3, color='#ff7f0e', linestyle='-')
-ax1.plot(r_t, r_h, label='RK4', linewidth=3, color='#2ca02c', linestyle='-')
 
-ax1.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
-ax1.legend(loc='upper right', fontsize=11, framealpha=0.9)
-plt.tight_layout()
-fig1.savefig(os.path.join(_here, "altitude_comparison.png"))
-plt.close(fig1)
+def line_kwargs(spec: dict, color: str, lw_boost: float) -> dict:
+    kwargs = dict(color=color, alpha=LINE_ALPHA, lw=spec["lw"] + lw_boost,
+                  dash_capstyle=spec["capstyle"], solid_capstyle=spec["capstyle"])
+    if spec["dashes"] is not None:
+        kwargs["dashes"] = spec["dashes"]
+    return kwargs
 
-# Figure 2: Velocity vs Time
-fig2, ax2 = plt.subplots(1, 1, figsize=(12, 8))
-ax2.set_xlabel('Time (s)', fontsize=12, fontweight='bold')
-ax2.set_ylabel('Velocity (m/s)', fontsize=12, fontweight='bold')
-ax2.set_title('Rocket Flight Simulation: Velocity Comparison\nNumerical Methods',
-              fontsize=14, fontweight='bold', pad=20)
 
-# Velocity - solid lines
-ax2.plot(e_t, e_v, label='Euler', linewidth=3, color='#1f77b4', linestyle='-')
-ax2.plot(p_t, p_v, label='ABM-2', linewidth=3, color='#ff7f0e', linestyle='-')
-ax2.plot(r_t, r_v, label='RK4', linewidth=3, color='#2ca02c', linestyle='-')
+fig, ax_left = plt.subplots(figsize=(10, 6.5))
+ax_right = ax_left.twinx()
 
-ax2.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
-ax2.axhline(y=0, color='black', linestyle='-', linewidth=0.8)
-ax2.legend(loc='upper right', fontsize=11, framealpha=0.9)
-plt.tight_layout()
-fig2.savefig(os.path.join(_here, "velocity_comparison.png"))
-plt.close(fig2)
+for label, t, h, v, a, color, lw_boost in INTEGRATORS:
+    series = (h, v, a)
+    for spec in LEFT_AXIS_QUANTITIES.values():
+        ax_left.plot(t, series[spec["idx"]], **line_kwargs(spec, color, lw_boost))
+    for spec in RIGHT_AXIS_QUANTITIES.values():
+        ax_right.plot(t, series[spec["idx"]], **line_kwargs(spec, color, lw_boost))
 
-# Figure 3: Acceleration vs Time
-fig3, ax3 = plt.subplots(1, 1, figsize=(12, 8))
-ax3.set_xlabel('Time (s)', fontsize=12, fontweight='bold')
-ax3.set_ylabel('Acceleration (m/s²)', fontsize=12, fontweight='bold')
-ax3.set_title('Rocket Flight Simulation: Acceleration Comparison\nNumerical Methods',
-              fontsize=14, fontweight='bold', pad=20)
+# Apogee markers, matching the event markers shown in the project's main GIF.
+# The three integrators peak within 0.1% of each other (see comparison.md),
+# so labels get a vertical offset per integrator to avoid sitting on top of
+# each other; the marker itself always sits at the true apogee point.
+APOGEE_LABEL_DY = {"Euler": 16, "ABM-2": 2, "RK4": -18}
+for apogee, apogee_t, label, color in [
+    (e_apogee, e_tap, "Euler", "#2a78d6"),
+    (p_apogee, p_tap, "ABM-2", "#eb6834"),
+    (r_apogee, r_tap, "RK4", "#1baf7a"),
+]:
+    ax_left.scatter([apogee_t], [apogee], marker="x", s=50, color=color, zorder=5)
+    ax_left.annotate(
+        "APOGEE", (apogee_t, apogee), textcoords="offset points",
+        xytext=(6, APOGEE_LABEL_DY[label]), fontsize=8, color=color,
+        path_effects=[pe.withStroke(linewidth=2.5, foreground="white")],
+    )
 
-# Acceleration - solid lines
-ax3.plot(e_t, e_a, label='Euler', linewidth=3, color='#1f77b4', linestyle='-')
-ax3.plot(p_t, p_a, label='ABM-2', linewidth=3, color='#ff7f0e', linestyle='-')
-ax3.plot(r_t, r_a, label='RK4', linewidth=3, color='#2ca02c', linestyle='-')
+ax_left.set_ylim(top=max(e_apogee, p_apogee, r_apogee) * 1.12)  # headroom for the apogee labels above
+ax_left.set_xlabel("Time (s)", fontsize=11)
+ax_left.set_ylabel("Altitude (m)", fontsize=11)
+ax_right.set_ylabel("Velocity (m/s)  /  Acceleration (m/s²)", fontsize=11)
+ax_left.set_title("Rocket Flight Simulation: Numerical Methods Comparison", fontsize=13, fontweight="bold")
+ax_left.grid(alpha=0.3, linewidth=0.5)
+ax_right.axhline(0, color="#c3c2b7", linewidth=0.8, zorder=0)
 
-ax3.grid(True, alpha=0.3, linestyle='-', linewidth=0.5)
-ax3.axhline(y=0, color='black', linestyle='-', linewidth=0.8)
-ax3.legend(loc='upper right', fontsize=11, framealpha=0.9)
-plt.tight_layout()
-fig3.savefig(os.path.join(_here, "acceleration_comparison.png"))
-plt.close(fig3)
+# Two independent legends stacked in the same corner: color -> integrator
+# (top), line style -> quantity (below it).
+integrator_legend_handles = [
+    Line2D([0], [0], color=color, lw=2.2, label=label) for label, *_rest, color, _lw in INTEGRATORS
+]
+all_quantities = {**LEFT_AXIS_QUANTITIES, **RIGHT_AXIS_QUANTITIES}
+quantity_legend_handles = [
+    Line2D([0], [0], label=spec["label"], **line_kwargs(spec, "#52514e", 0.0))
+    for spec in all_quantities.values()
+]
+integrator_legend = ax_left.legend(handles=integrator_legend_handles, loc="upper right",
+                                    bbox_to_anchor=(1.0, 1.0), fontsize=9, title="Integrator", title_fontsize=9)
+ax_left.add_artist(integrator_legend)
+ax_left.legend(handles=quantity_legend_handles, loc="upper right",
+               bbox_to_anchor=(1.0, 0.74), fontsize=9, title="Quantity", title_fontsize=9)
 
-print("\nWrote altitude_comparison.png, velocity_comparison.png, acceleration_comparison.png to legacy/")
+fig.tight_layout()
+fig.savefig(os.path.join(_here, "comparison.png"))
+plt.close(fig)
+
+print("\nWrote comparison.png to legacy/")
+
+# ==========================================
+# INTERACTIVE COMPARISON PLOT: same data, encoding, and apogee markers as
+# comparison.png above, as a self-contained zoomable/pannable/hoverable HTML
+# file (see plot_flight_comparison_interactive.py's module docstring for
+# why: GitHub's markdown renderer only displays static images, not embedded
+# JavaScript, so this doesn't render inline on comparison.md and is linked
+# instead).
+# ==========================================
+import plotly.graph_objects as go
+
+interactive_fig = go.Figure()
+for label, t, h, v, a, color, _lw_boost in INTEGRATORS:
+    series = (h, v, a)
+    for name, spec in LEFT_AXIS_QUANTITIES.items():
+        interactive_fig.add_trace(go.Scatter(
+            x=t, y=series[spec["idx"]], mode="lines", name=f"{label} - {spec['label']}",
+            legendgroup=label, line=dict(color=color, width=2),
+            hovertemplate=f"{label}<br>{spec['label']}: %{{y:.2f}}<br>t=%{{x:.2f}}s<extra></extra>",
+        ))
+    for name, spec in RIGHT_AXIS_QUANTITIES.items():
+        dash = "dash" if spec["dashes"] == (6, 2.5) else "dot"
+        interactive_fig.add_trace(go.Scatter(
+            x=t, y=series[spec["idx"]], mode="lines", name=f"{label} - {spec['label']}",
+            legendgroup=label, line=dict(color=color, dash=dash, width=1.6),
+            opacity=0.85, yaxis="y2",
+            hovertemplate=f"{label}<br>{spec['label']}: %{{y:.2f}}<br>t=%{{x:.2f}}s<extra></extra>",
+        ))
+
+for apogee, apogee_t, label, color in [
+    (e_apogee, e_tap, "Euler", "#2a78d6"),
+    (p_apogee, p_tap, "ABM-2", "#eb6834"),
+    (r_apogee, r_tap, "RK4", "#1baf7a"),
+]:
+    interactive_fig.add_trace(go.Scatter(
+        x=[apogee_t], y=[apogee], mode="markers+text", text=["APOGEE"],
+        textposition="top right", textfont=dict(color=color, size=11),
+        marker=dict(symbol="x", size=10, color=color),
+        legendgroup=label, showlegend=False,
+        hovertemplate=f"{label} APOGEE<br>alt: %{{y:.2f}} m<br>t=%{{x:.2f}}s<extra></extra>",
+    ))
+
+interactive_fig.update_layout(
+    title="Rocket Flight Simulation: Numerical Methods Comparison (drag to zoom, double-click to reset, click legend to toggle)",
+    xaxis=dict(title="Time (s)"),
+    yaxis=dict(title="Altitude (m)"),
+    yaxis2=dict(title="Velocity (m/s)  /  Acceleration (m/s²)", overlaying="y", side="right"),
+    hovermode="closest",
+    legend=dict(title="Integrator - Quantity (click to toggle)", font=dict(size=10)),
+    template="plotly_white",
+    width=1100, height=650,
+)
+interactive_fig.write_html(os.path.join(_here, "comparison_interactive.html"), include_plotlyjs=True, full_html=True)
+print("Wrote comparison_interactive.html to legacy/")
 
 # ==========================================
 # REFERENCES

@@ -1,6 +1,6 @@
 """Fixed-rocket configuration for the Green Egg simulation.
 
-Values below are extracted directly from the real "Green Eggs OR.ork" design
+Values below are extracted directly from the real "green_eggs_openrocket_design.ork" design
 file (nose/body/fin/mass/motor/recovery), not placeholders. See the dry-mass
 and recovery notes for how each was derived.
 """
@@ -24,10 +24,10 @@ from .recovery import RecoveryModel
 # for the two auto-sized centering rings, the real auto-fit inner/outer
 # radii), not estimates.
 #
-# wall_thickness_m (6th field): 0.0 means "treat as a solid cylinder" --
+# wall_thickness_m (6th field): 0.0 means "treat as a solid cylinder",
 # correct for point-mass-like components (payload/avionics/parachute/shock
 # cord). A nonzero value means "treat as a hollow cylindrical tube of this
-# wall thickness" -- for genuinely tube-shaped structural parts. The nose
+# wall thickness", for genuinely tube-shaped structural parts. The nose
 # cone and fin set are also structurally non-solid but need a different
 # (shell / flat-plate) formula, not a simple hollow-annulus one, so they
 # still use the solid-cylinder approximation here.
@@ -69,7 +69,7 @@ _DRY_COMPONENTS_RAW = (
 # the tube's aft end (motor_x_position = mount.length - motor.length +
 # overhang, relative to the mount's own start). RASP/.eng motor CG is always
 # length/2 (this motor's digest confirms RASP loading, so there's no real
-# internal CG offset being missed here) -- so
+# internal CG offset being missed here), so
 # motor x_cg = mount_x_start + motor_x_position + 0.5*motor_length.
 _MOTOR_MOUNT_OVERHANG_M = 0.00635
 _MOTOR_MOUNT_X_CG_M = 0.501650 + (0.069850 - 0.07 + _MOTOR_MOUNT_OVERHANG_M) + 0.5 * 0.07
@@ -78,7 +78,7 @@ _MOTOR_LENGTH_M = 0.07
 
 # Nose cone shell + rear-shoulder geometry, from the .ork file's <nosecone>
 # element. Used only by nose_shell_mass_cg_m() below for the real mass-CG
-# integration -- geometry.py's nose_profile_integration() deliberately treats
+# integration. geometry.py's nose_profile_integration() deliberately treats
 # the nose as a solid outer-profile revolution, which is correct for
 # wetted-area/CP/planform but not for mass CG of the actual hollow shell
 # (+ shoulder, which extends past the nose's own length into the body tube).
@@ -98,8 +98,8 @@ _FIN_BULK_DENSITY_KG_M3 = 216.249255  # "Firm Balsa" (Custom material group)
 _FIN_TAB_LENGTH_M = 0.043688
 _FIN_TAB_HEIGHT_M = 0.009524999999999999
 # <tabposition relativeto="absolute">0.02032</tabposition> is the second (and
-# thus authoritative -- each <tabposition> tag is applied in file order, last
-# one wins) of the two <tabposition> tags in the file; an "absolute" position
+# thus authoritative, since each <tabposition> tag is applied in file order
+# and the last one wins) of the two <tabposition> tags in the file; an "absolute" position
 # is already the tab's front-edge offset from the fin's own leading edge, no
 # further conversion needed.
 _FIN_TAB_FRONT_OFFSET_M = 0.02032
@@ -120,7 +120,10 @@ class RocketConfig:
     deploy_delay_s: float = 0.0
     launch_rail_length_m: float = 0.9144
     rail_angle_deg: float = 0.0
-    launch_altitude_m: float = 512.0
+    # Verified true field elevation. The EasyMini log's own baro-derived
+    # ground reading (507.5m) reflects the standard 1013.25 hPa reference
+    # atmosphere, not this day's actual pressure; see data/derive_real_flight_csv.py.
+    launch_altitude_m: float = 532.0
     # From the .ork file's saved simulation conditions (<launchlatitude>),
     # rounded to ~1km precision (WGS84 gravity only needs ~0.01 deg precision,
     # so this doesn't affect the physics); feeds the WGS84 gravity model (gravity.py).
@@ -174,7 +177,7 @@ class RocketConfig:
             deploy_delay_s=0.0,
             launch_rail_length_m=0.9144,
             rail_angle_deg=0.0,
-            launch_altitude_m=512.0,
+            launch_altitude_m=532.0,
             launch_latitude_deg=33.98,
             initial_velocity_m_s=0.0,
             surface_finish="normal",
@@ -207,7 +210,7 @@ class RocketConfig:
         # other component) is only exact for uniform-cross-section
         # (cylindrical) parts. The nose cone (tapered shell + rear shoulder)
         # and the freeform fin set (non-rectangular planform + tab + fillet)
-        # need a real shape-integrated mass-CG instead -- see
+        # need a real shape-integrated mass-CG instead; see
         # nose_shell_mass_cg_m()/fin_set_mass_cg_m() in geometry.py.
         nose_local_x_cg_m = nose_shell_mass_cg_m(
             self.geometry,
