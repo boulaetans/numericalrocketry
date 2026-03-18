@@ -1,6 +1,6 @@
 """Static altitude/velocity/acceleration comparison of the same three flights
 animate_flight_comparison.py covers, for anyone who wants the shape of the
-result without waiting for the GIF to loop.
+result without waiting for the animation to play.
 
 One plot, two y-axes, matching how OpenRocket's own plot view handles this
 exact situation (confirmed against its docs, not assumed): "You can assign
@@ -25,7 +25,7 @@ they read clearly against the solid altitude lines.
 
 Each track's mission events (ignition, burnout, apogee, recovery deploy,
 touchdown) are marked with an X and a label, in that track's own color,
-matching the event markers already shown in the animated GIF.
+matching the event markers already shown in the animated MP4.
 
 Each track's plotted range stops just before its own touchdown, not at the
 end of its raw data. This matters most for the NumericalRocketry track: the
@@ -131,14 +131,14 @@ def main() -> None:
             ax_right.plot(t, track[spec["key"]][mask], **line_kwargs(spec, track["color"], lw_boost))
 
     # Event markers (ignition, burnout, apogee, recovery deploy, touchdown),
-    # matching the ones already shown in the GIF. Ignition sits at the exact
+    # matching the ones already shown in the animation. Ignition sits at the exact
     # same (0, 0) point for all three tracks, and several other events land
     # close together too, so each track gets its own small diagonal offset
     # (TRACK_LABEL_OFFSET) on top of a per-event base offset (EVENT_BASE_DY)
     # to keep same-event labels from stacking; the X marker itself always
     # sits at the true event point. Events a track can't determine (None)
     # are skipped; events found by estimation rather than a direct state-
-    # machine marker are suffixed "(est.)", matching the GIF's convention.
+    # machine marker are suffixed "(est.)", matching the animation's convention.
     EVENT_BASE_DY = {"ignition": -14, "burnout": 12, "apogee": 12, "recovery_deploy": -18, "touchdown": 12}
     TRACK_LABEL_OFFSET = {"NumericalRocketry": 0, "OpenRocket (reference sim)": 1, "Real Flight": 2}
     for track in tracks:
