@@ -3,14 +3,16 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)
 
-A standalone Python 6DOF rocket flight simulator built to reproduce OpenRocket’s simulation results for one specific real rocket, “Green Eggs”, flying a real Estes C11-5 motor.
+A standalone Python 6DOF rocket flight simulator, validated against OpenRocket and a real logged flight.
 
-This isn't a general-purpose simulator: the geometry, mass table, and motor are hardcoded for this one design. The goal is an independent Python reimplementation of the rocket-flight physics used by OpenRocket, developed by studying its open-source implementation and validating the results against OpenRocket. It's a personal/research project and learning exercise.
+This isn't a general-purpose simulator: the geometry, mass table, and motor are hardcoded for one specific real rocket, "Green Eggs", flying a real Estes C11-5 motor. The goal is an independent Python reimplementation of the rocket-flight physics used by OpenRocket, developed by studying its open-source implementation and validating the results against it. It's a personal/research project and learning exercise.
 
 ## Table of contents
 
 * [Background](#background)
 * [Results](#results)
+  * [Accuracy vs. OpenRocket](#accuracy-vs-openrocket)
+  * [Real flight vs. simulation](#real-flight-vs-simulation)
 * [Getting started](#getting-started)
 * [Usage](#usage)
 * [Project structure](#project-structure)
@@ -24,7 +26,7 @@ The rotational and translational equations of motion are integrated with a fixed
 
 **Physics model, briefly.** Aerodynamic normal force and center of pressure follow a Barrowman-derived approach (`physics/aerodynamics.py`), computed separately for the nose cone and fin set and combined with a nonlinear body-lift term and a Mach-blended fin/body interference factor. Drag (`physics/drag.py`) combines skin friction, nose and fin pressure drag, base drag, and transonic wave drag. Atmosphere (`physics/atmosphere.py`) follows a three-layer ISA temperature/pressure model with Sutherland's law for viscosity, and gravity (`physics/gravity.py`) follows WGS84 rather than a constant 9.80665 m/s². Attitude is a quaternion integrated via the exponential map, so the whole simulation state is a 13-component rigid-body vector (position, velocity, orientation quaternion, angular velocity, propellant mass) advanced by RK4 with an eight-criterion adaptive step-size controller (`simulation/integrator.py`). Every one of these models is written out in full mathematical detail, with every constant and equation explained term by term, in the project report.
 
-**Accuracy gain from the full 3D rewrite.** Run head-to-head on this same rocket and motor, the 1D model's own RK4 branch gets apogee within 2.00% of OpenRocket's reference simulation (99.27 m vs. 101.29 m), a reasonable result for a model with no attitude dynamics, no exact Barrowman CP/stability treatment, and a simplified drag model. This project's full 6DOF result closes about 99.5% of that remaining gap, landing within 0.01% of OpenRocket, roughly a 200× reduction in apogee error. Unlike the 1D model, it produces a stability margin, off-axis motion, and a modeled recovery/descent phase at all. Full breakdown, plots, and how each integrator does individually in [`legacy/comparison.md`](legacy/comparison.md).
+**Accuracy gain from the full 3D rewrite.** Run head-to-head on this same rocket and motor, the 1D model's own RK4 branch gets apogee within 1.99% of OpenRocket's reference simulation (99.27 m vs. 101.29 m), a reasonable result for a model with no attitude dynamics, no exact Barrowman CP/stability treatment, and a simplified drag model. This project's full 6DOF result closes about 99.5% of that remaining gap, landing within 0.01% of OpenRocket, roughly a 200× reduction in apogee error. Unlike the 1D model, it produces a stability margin, off-axis motion, and a modeled recovery/descent phase at all. Full breakdown, plots, and how each integrator does individually in [`legacy/comparison.md`](legacy/comparison.md).
 
 **The full project report** is in [`docs/numericalrocketry_report.pdf`](docs/numericalrocketry_report.pdf): a from-scratch, equation-by-equation writeup of every physics and numerical-methods model in this codebase (ISA atmosphere, WGS84 gravity, Barrowman aerodynamics, the drag decomposition, quaternion rigid-body dynamics, adaptive RK4, the component-wise mass/inertia model, and the Kalman filter/RTS smoother used to reconstruct the real flight's speed and acceleration from raw pressure data), plus the full validation results against both OpenRocket and the real flight.
 
@@ -34,13 +36,13 @@ Three versions of the same flight, compared on a shared timeline: this project's
 
 [![Animated 3D comparison of all three flights, click to play](assets/flight_comparison_thumbnail.png)](https://github.com/user-attachments/assets/eec7af9f-b41b-4994-86a0-9f0fbf17c71a)
 
-Click the image above to play the animation (60fps). The source file is versioned in the repo at [`assets/flight_comparison.mp4`](assets/flight_comparison.mp4) and regenerated by `animate_flight_comparison.py`; the play link points to a separate copy uploaded to GitHub's attachment CDN, since GitHub only renders a playable video from that CDN, not from a file committed directly to the repo.
+Click the image above to play the animation (60fps). The source file is versioned in the repo at [`assets/flight_comparison.mp4`](assets/flight_comparison.mp4) and regenerated by `animate_flight_comparison.py`.
 
 Quick look, no animation required:
 
 ![Static altitude-vs-time comparison of all three flights](assets/flight_comparison.png)
 
-**Interactive version.** **[Open the interactive version](https://htmlpreview.github.io/?https://github.com/boulaetans/numericalrocketry/blob/main/assets/flight_comparison_interactive.html)**, which renders [`assets/flight_comparison_interactive.html`](assets/flight_comparison_interactive.html) live in the browser via [htmlpreview.github.io](https://htmlpreview.github.io), a free proxy for viewing a raw HTML file hosted on GitHub without downloading it. It has the same data, but with draggable zoom/pan, hover tooltips showing exact values, and click-to-toggle lines in the legend. This link only works once the file is pushed to the public repo; until then, download the file and open it locally instead (this also works fully offline; regenerate with `plot_flight_comparison_interactive.py`).
+**Interactive version.** **[Open the interactive version](https://htmlpreview.github.io/?https://github.com/boulaetans/numericalrocketry/blob/main/assets/flight_comparison_interactive.html)** of [`assets/flight_comparison_interactive.html`](assets/flight_comparison_interactive.html), with the same data but draggable zoom/pan, hover tooltips showing exact values, and click-to-toggle lines in the legend. Works fully offline too: download the file and open it locally, or regenerate it with `plot_flight_comparison_interactive.py`.
 
 |              | NumericalRocketry (sim)  | OpenRocket (reference sim) | Real Flight (logged)      |
 | ------------ | ------------------------ | --------------------------- | -------------------------- |
@@ -48,28 +50,40 @@ Quick look, no animation required:
 | Max velocity | 45.5 m/s                 | 45.5 m/s                    | 42.4 m/s *(re-derived, see note)* |
 | Touchdown    | t = 27.12 s              | t = 27.19 s                 | t = 42.36 s *(corrected, see note)* |
 
-**Real-flight log corrections.** The raw log required correction before it was usable, not just read as-is. The EasyMini board used for this flight is barometer-only (no accelerometer), and checking it directly against the raw samples found three issues: the computed ground elevation was wrong by 24.5 m (it used a fixed standard-atmosphere pressure reference rather than the day's real pressure), 66 rows were exact duplicate artifacts, and the onboard `boost`/`coast`/`main`/`landed` state labels did not line up with true ignition or touchdown. All three are corrected directly in the CSV: ground elevation is solved by least-squares fit against the actual pressure data, duplicate rows are removed, and `state_name` is corrected at ignition (t=0) and landed (the point where acceleration/speed actually settle, rather than the flag's much-delayed timestamp). The full method is documented in [`data/derive_real_flight_csv.py`](data/derive_real_flight_csv.py), which rebuilds the CSV from the raw EasyMini export end to end.
-
-**Velocity re-derivation.** The real flight's max velocity in the table above is re-derived, not the onboard value. The EasyMini has no accelerometer, so its own `acceleration`/`speed` columns are a real-time Kalman filter's estimate from pressure alone. A real-time filter cannot see future samples, so it measurably lags during the fastest part of the flight: integrating the onboard speed under-predicts the real height gained during boost by about 17%, and that gap stops growing once boost ends. Re-deriving speed/acceleration offline, using a forward Kalman filter and a backward RTS smoother that is not limited to past-only data, closes most of that gap: 42.4 m/s versus the onboard log's originally reported 35.4 m/s, against a simulated 45.5 m/s. The first 0.3 seconds of boost remain the roughest part of this re-derivation, since the sensor's own noise there is close in size to the true motion and no amount of retuning fully separates the two; treat that stretch as the least certain part of the real-flight curve.
-
-**Apogee gap.** The real flight's apogee reads about 12.42% higher than either simulation. A single real flight diverging from simulation by a few percent, sometimes more, is a common outcome in amateur rocketry validation and not a red flag by itself: individual motors vary batch to batch within certification tolerance, an as-built rocket rarely masses exactly what its design file specifies, and launch-day atmospheric conditions are never quite the standard atmosphere both simulations assume. One real flight is a single noisy sample, not a controlled repeat measurement.
-
-This project's own simulator and OpenRocket, two independently built physics engines, agree with each other to within 0.01%. For a shared modeling error to explain the real-flight gap, both would have to be wrong by about 12.42% in the same direction, which is unlikely. The gap more plausibly comes from having only one real flight and one set of sensor data; the pressure sensor's own limitations, described above, are a demonstrated contributor. A barometric altimeter is also specifically prone to dynamic-pressure error: a fast-moving rocket creates a local low-pressure region at the sensor's port (a Bernoulli effect), which a low-cost altimeter can misread as extra altitude, especially at higher speeds and in the same direction as observed here. There is nothing to fix in the simulator based on this result; it is a real-world finding about the limits of a low-cost flight computer, not a simulator bug.
-
-**Touchdown timing.** The real flight's touchdown came roughly 56% later than either simulation (about 42 s versus about 27 s), even though apogee time and altitude are close across all three. Two verified, partial contributors: the real flight's onboard descent rate varies between about -1.8 and -4.2 m/s over time (confirmed directly in the raw sensor data, not a smoothing artifact), consistent with the rocket swinging under the parachute or wind gusts affecting descent, while both simulations assume a steady terminal velocity; and the real landing site sits about 3 m below the launch pad's elevation (the flight computer's height reading settles around -3 m rather than 0 m after landing), so the real rocket had slightly farther to fall than either simulation, which assumes touchdown back at launch elevation. The elevation difference accounts for under a second of the total gap on its own; the larger remaining difference is most plausibly parachute-drag and descent-rate modeling, which is worth investigating further if descent modeling becomes a focus later.
-
-### Simulation accuracy vs. OpenRocket
+### Accuracy vs. OpenRocket
 
 These are the apogee, peak velocity, and touchdown results compared directly with OpenRocket's simulation of the same rocket, motor, and conditions.
 
-| Metric          | NumericalRocketry | OpenRocket | Gap                |
-| --------------- | ----------------- | ---------- | ------------------ |
-| Apogee altitude | 101.30 m          | 101.29 m   | +0.01 m (0.01%)    |
-| Apogee time     | 4.7663 s          | 4.766 s    | ~1 ms              |
-| Max velocity    | 45.53 m/s         | 45.53 m/s  | ~0.005 m/s (0.01%) |
-| Touchdown       | 27.116 s          | 27.194 s   | -0.08 s (0.29%)    |
+| Metric          | NumericalRocketry | OpenRocket | Gap                  |
+| --------------- | ------------------ | ---------- | --------------------- |
+| Apogee altitude | 101.30 m            | 101.29 m   | +0.01 m (0.01%)       |
+| Apogee time     | 4.766 s              | 4.766 s    | exact                 |
+| Max velocity    | 45.531 m/s           | 45.533 m/s | -0.002 m/s (0.004%)   |
+| Touchdown       | 27.116 s             | 27.194 s   | -0.08 s (0.29%)       |
 
 Every event, including internal validation metrics such as rail clear, recovery deploy, liftoff mass, and CG, is in [`data/results.md`](data/results.md).
+
+### Real flight vs. simulation
+
+The real flight's apogee, max velocity, and touchdown time all diverge from both simulations by more than the simulations diverge from each other. The sections below cover why, and what had to be corrected in the raw sensor log before any of these numbers were usable at all.
+
+#### Log corrections
+
+The raw log required correction before it was usable, not just read as is. The EasyMini board used for this flight is barometer-only (no accelerometer), and checking it directly against the raw samples found three issues: the computed ground elevation was wrong by 24.5 m (it used a fixed standard-atmosphere pressure reference rather than the day's real pressure), 66 rows were exact duplicate artifacts, and the onboard `boost`/`coast`/`main`/`landed` state labels did not line up with true ignition or touchdown. All three are corrected directly in the CSV: ground elevation is solved by least-squares fit against the actual pressure data, duplicate rows are removed, and `state_name` is corrected at ignition (t=0) and landed (the point where acceleration/speed actually settle, rather than the flag's much-delayed timestamp). The full method is documented in [`data/derive_real_flight_csv.py`](data/derive_real_flight_csv.py), which rebuilds the CSV from the raw EasyMini export end to end.
+
+#### Velocity re-derivation
+
+The real flight's max velocity in the table above is re-derived, not the onboard value. The EasyMini has no accelerometer, so its own `acceleration`/`speed` columns are a real-time Kalman filter's estimate from pressure alone. A real-time filter cannot see future samples, so it measurably lags during the fastest part of the flight: integrating the onboard speed under-predicts the real height gained during boost by about 17%, and that gap stops growing once boost ends. Re-deriving speed/acceleration offline, using a forward Kalman filter and a backward RTS smoother that is not limited to past-only data, closes most of that gap: 42.4 m/s versus the onboard log's originally reported 35.4 m/s, against a simulated 45.5 m/s. The first 0.3 seconds of boost remain the roughest part of this re-derivation, since the sensor's own noise there is close in size to the true motion and no amount of retuning fully separates the two, so treat that stretch as the least certain part of the real-flight curve.
+
+#### Apogee gap
+
+The real flight's apogee reads about 12.42% higher than either simulation. A single real flight diverging from simulation by a few percent, sometimes more, is a common outcome in amateur rocketry validation and not a red flag by itself: individual motors vary batch to batch within certification tolerance, an as-built rocket rarely masses exactly what its design file specifies, and launch-day atmospheric conditions are never quite the standard atmosphere both simulations assume. One real flight is a single noisy sample, not a controlled repeat measurement.
+
+This project's own simulator and OpenRocket, two independently built physics engines, agree with each other to within 0.01%. For a shared modeling error to explain the real-flight gap, both would have to be wrong by about 12.42% in the same direction, which is unlikely. The gap more plausibly comes from having only one real flight and one set of sensor data; the pressure sensor's own limitations, described above, are a demonstrated contributor. A barometric altimeter is also specifically prone to dynamic-pressure error: a fast-moving rocket creates a local low-pressure region at the sensor's port (a Bernoulli effect), which a low-cost altimeter can misread as extra altitude, especially at higher speeds and in the same direction as observed here. There is nothing to fix in the simulator based on this result; it is a real-world finding about the limits of a low-cost flight computer, not a simulator bug.
+
+#### Touchdown timing
+
+The real flight's touchdown came roughly 56% later than either simulation (about 42 s versus about 27 s), even though apogee time and altitude are close across all three. Two verified, partial contributors: the real flight's onboard descent rate varies between about -1.8 and -4.2 m/s over time (confirmed directly in the raw sensor data, not a smoothing artifact), consistent with the rocket swinging under the parachute or wind gusts affecting descent, while both simulations assume a steady terminal velocity; and the real landing site sits about 3 m below the launch pad's elevation (the flight computer's height reading settles around -3 m rather than 0 m after landing), so the real rocket had slightly farther to fall than either simulation, which assumes touchdown back at launch elevation. The elevation difference accounts for under a second of the total gap on its own; the larger remaining difference is most plausibly parachute-drag and descent-rate modeling, which is worth investigating further if descent modeling becomes a focus later.
 
 ## Getting started
 
