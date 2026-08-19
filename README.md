@@ -28,6 +28,10 @@ Three versions of the same flight, compared on a shared timeline: this project's
 
 ![Animated 3D comparison of all three flights](assets/flight_comparison.gif)
 
+Quick look, no animation required:
+
+![Static altitude-vs-time comparison of all three flights](assets/flight_comparison.png)
+
 | | NumericalRocketry (sim) | OpenRocket (reference sim) | Real Flight (logged) |
 | --- | --- | --- | --- |
 | Apogee | t = 4.77 s, 101.25 m AGL | t = 4.77 s, 101.29 m AGL | t = 4.76 s, 111.2 m AGL |
@@ -86,8 +90,14 @@ Writes `assets/flight_comparison.gif` by default.
 | --- | --- | --- |
 | `--output` | `assets/flight_comparison.gif` | Output file path |
 | `--fps` | `20` | Frames per second |
-| `--playback-seconds` | `16.0` | How long the main sweep takes to play |
+| `--playback-seconds` | real time | How long the main sweep takes to play (defaults to actual flight duration, ~41.7 s) |
 | `--hold-seconds` | `5.0` | Pause after the last touchdown before the GIF loops |
+
+Regenerate the static comparison plot:
+```sh
+python plot_flight_comparison.py
+```
+Writes `assets/flight_comparison.png` by default (`--output` to change it).
 
 ## Project structure
 
@@ -114,10 +124,11 @@ numericalrocketry/
 │   └── motors/
 │       └── Estes_C11.eng             # RASP motor data (thrust curve, mass)
 ├── data/                         # reference/input data: the .ork design file + both reference flight logs
-├── assets/                       # the comparison GIF
+├── assets/                       # the comparison GIF and static plot
 ├── docs/                         # the project abstract
 ├── run_simulation.py             # entry point: runs the 6DOF simulation
 ├── animate_flight_comparison.py  # entry point: generates the 3-way comparison GIF
+├── plot_flight_comparison.py     # entry point: generates the static comparison plot
 └── requirements.txt
 ```
 
