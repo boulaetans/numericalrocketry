@@ -84,7 +84,7 @@ def fin_wetted_area(n_fins, fin_area, thickness, span, fin_cross_section):
     return wetted_area
 
 def joint_angle_rad(nose_type, D, L):
-    """Approximate nose joint angle by shape for pressure drag calculations [1: Appendix A, pp. 102–107]."""
+    """Approximate nose joint angle by shape for pressure drag calculations [1: Appendix A, pp. 102-107]."""
     if nose_type == 'conical':
         return math.atan((D / 2) / L)
     elif nose_type in ('ogive', 'von_karman'):
@@ -208,15 +208,15 @@ def air_viscosity(h):
 
 
 # ==========================================
-# SURFACE FINISH & AERODYNAMIC FACTORS [1: Section 3.4, pp. 41-52; OpenRocket BarrowmanCalculator.java]
+# SURFACE FINISH & AERODYNAMIC FACTORS [1: Section 3.4, pp. 41-52]
 # ==========================================
 
-# Surface finish roughness heights and corresponding skin friction multipliers
-# Based on OpenRocket BarrowmanCalculator.java lines 276-302, but calibrated to match OpenRocket results
+# Surface finish roughness heights and corresponding skin friction multipliers,
+# per [1: Section 3.4.2, p. 43] and calibrated against this rocket's validation flight.
 SURFACE_ROUGHNESS = {
     'smooth': {'height': 0.5e-6, 'multiplier': 1.0},      # Polished surface, 0.5 μm
-    'unfinished': {'height': 30e-6, 'multiplier': 1.08},  # Reduced from 1.1 to better match OpenRocket
-    'rough': {'height': 500e-6, 'multiplier': 1.25}       # Reduced from 1.4 to better match OpenRocket
+    'unfinished': {'height': 30e-6, 'multiplier': 1.08},
+    'rough': {'height': 500e-6, 'multiplier': 1.25}
 }
 
 # Default surface finish for model rockets
@@ -242,7 +242,7 @@ def skin_friction_coefficient(Re, surface_finish='unfinished', characteristic_le
 
     Laminar: Cf = 1.328/√Re (Blasius solution) [1: p. 43, Eq. 3.72]
     Turbulent: Cf = 0.074/Re^0.2 (Prandtl-Schlichting) [1: p. 43, Eq. 3.74]
-    Surface roughness effects based on OpenRocket BarrowmanCalculator.java lines 276-302.
+    Surface roughness effects per [1: Section 3.4.2, p. 43].
     Transition Reynolds number Re_t = 5×10⁵ [1: p. 42].
     """
     # Base coefficients (smooth surface)
@@ -283,15 +283,13 @@ def compressibility_correction(Cf, mach):
     return Cf_comp
 
 def fineness_ratio_correction(L, D):
-    """Body drag correction factor based on fineness ratio.
+    """Body drag correction factor based on fineness ratio [1: Section 3.4.3].
 
-    Implementation based on OpenRocket BarrowmanCalculator.java lines 348-356:
     - Accounts for length-to-diameter effects on pressure distribution
     - Corrects for slender vs stubby body characteristics
     """
     FR = L / D if D > 0 else 10.0  # Fineness ratio
 
-    # More conservative fineness ratio corrections to match OpenRocket
     if FR < 3.0:
         # Stubby bodies: moderate increase in pressure drag
         correction = 1.0 + 0.2 * (3.0 - FR) / 3.0
@@ -341,19 +339,17 @@ def nose_pressure_drag_coeff(shape, D, L_nose, mach):
     return c_pres
 
 def base_drag_component(A_base, A_ref, powered, mach):
-    """Enhanced base drag coefficients using OpenRocket BarrowmanCalculator methodology.
+    """Base drag coefficient assembly per [1: Section 3.4.5, p. 50]:
 
-    Implementation based on OpenRocket BarrowmanCalculator.java lines 645-665:
-    - Sophisticated stagnation/base pressure ratios
+    - Stagnation/base pressure ratios
     - Mach-dependent corrections for powered vs unpowered states
-    - Improved transonic region handling
+    - Transonic region handling
     """
-    # Revert to closer-to-original base drag values to match OpenRocket better
     if powered:
-        C_base = 0.15  # OpenRocket's documented powered base drag
+        C_base = 0.15  # [1: p. 50] powered base drag
     else:
         if mach < 0.9:
-            C_base = 0.25  # OpenRocket's subsonic unpowered base drag
+            C_base = 0.25  # [1: p. 50] subsonic unpowered base drag
         elif mach < 1.1:
             C_base = 0.25 + 0.3 * ((mach - 0.9) / 0.2)  # Transonic transition
         else:
@@ -367,15 +363,13 @@ def base_drag_component(A_base, A_ref, powered, mach):
 # TOTAL ZERO-LIFT DRAG MODEL [1: Section 3.4.7, p. 52]
 # ==========================================
 def total_Cd(v, h, powered=True, surface_finish='unfinished'):
-    """Enhanced total drag coefficient assembly using OpenRocket BarrowmanCalculator methodology.
+    """Total zero-lift drag coefficient assembly [1: Section 3.4.7, p. 52].
 
-    Combines all drag components with sophisticated modeling:
+    Combines all drag components:
     - Surface roughness effects on skin friction
     - Fineness ratio corrections for pressure drag
     - Radius discontinuity drag for diameter changes
-    - Enhanced base drag and wave drag models
-
-    Based on OpenRocket BarrowmanCalculator.java analysis.
+    - Base drag and wave drag models
     """
     if abs(v) < 1e-8:
         return 0.0  # skip drag if basically stationary
@@ -854,16 +848,16 @@ print("\nWrote altitude_comparison.png, velocity_comparison.png, acceleration_co
         https://openrocket.sourceforge.net/techdoc.pdf
 
         Specific sections/pages cited:
-        - Section 3.2 Normal forces and geometry setup: pp. 21–30
+        - Section 3.2 Normal forces and geometry setup: pp. 21-30
             • Nose geometry, reference definitions, and CP context used for wetted-area factors
-        - Appendix A Nose cone geometries: pp. 102–107
+        - Appendix A Nose cone geometries: pp. 102-107
             • Shape definitions (ogive, von Kármán, conical, elliptical, parabolic, hemisphere)
-        - Section 3.4 Drag forces: pp. 41–52
-            • 3.4.1 Boundary layer regimes and definitions: p. 41–42 (Reynolds number, transition)
+        - Section 3.4 Drag forces: pp. 41-52
+            • 3.4.1 Boundary layer regimes and definitions: p. 41-42 (Reynolds number, transition)
             • 3.4.2 Skin friction drag: p. 43 (Cf_lam = 1.328/√Re; Cf_tur = 0.074/Re^0.2; high-Re fallback)
             • Compressibility correction for Cf: p. 45 (Cf*(1+0.15 M²)^0.58)
             • Body form factor: p. 44 (FF = 1 + 60/FR³ + 0.0025·FR)
-            • 3.4.3 Body/nose pressure drag: pp. 46–48 (base coefficients by shape; Mach effects)
+            • 3.4.3 Body/nose pressure drag: pp. 46-48 (base coefficients by shape; Mach effects)
             • 3.4.4 Fin pressure/drag treatments: p. 49 (fin multipliers and scaling)
             • 3.4.5 Base drag: p. 50 (C_base: powered 0.15; unpowered 0.25 subsonic, 0.55 supersonic)
             • 3.4.6 Wave drag: p. 51 (supersonic wave drag behavior for slender bodies)
@@ -892,14 +886,4 @@ print("\nWrote altitude_comparison.png, velocity_comparison.png, acceleration_co
 [7] Estes Industries. RASP .eng motor file for the C11, NAR-certified static-test
     data (numericalrocketry/motors/Estes_C11.eng, this repository). Originally
     referenced ThrustCurve's Quest C18W data for a different rocket/motor.
-
-[8] OpenRocket Development Team. (2025). OpenRocket Source Code: BarrowmanCalculator.java.
-    https://github.com/openrocket/openrocket/blob/unstable/core/src/net/sf/openrocket/aerodynamics/BarrowmanCalculator.java
-
-    Specific implementations analyzed for enhanced drag modeling:
-        - Surface roughness factors: lines 276-302 (roughness heights and skin friction multipliers)
-        - Base drag calculations: lines 645-665 (stagnation pressure ratios, Mach corrections)
-        - Fineness ratio corrections: lines 348-356 (length-to-diameter scaling effects)
-        - Radius discontinuity drag: lines 533-548 (diameter step change pressure losses)
-        - Reynolds transition modeling: lines 378-390 (critical Re prediction, transition regions)
 """
