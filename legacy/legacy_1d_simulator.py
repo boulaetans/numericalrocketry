@@ -795,7 +795,7 @@ print(f"{'RK4':<22}{r_apogee:12.3f}{r_maxv:16.3f}{r_maxa:20.3f}{r_tap:18.3f}{r_f
 # which in turn forms one around RK4 (drawn last, narrowest, on top). Each
 # integrator's apogee is marked with an X and a label, in that integrator's
 # own color, matching the event markers already shown in the project's main
-# animated GIF.
+# animated MP4.
 # ==========================================
 import os
 import matplotlib.patheffects as pe
@@ -836,7 +836,7 @@ for label, t, h, v, a, color, lw_boost in INTEGRATORS:
     for spec in RIGHT_AXIS_QUANTITIES.values():
         ax_right.plot(t, series[spec["idx"]], **line_kwargs(spec, color, lw_boost))
 
-# Apogee markers, matching the event markers shown in the project's main GIF.
+# Apogee markers, matching the event markers shown in the project's main MP4.
 # The three integrators peak within 0.1% of each other (see COMPARISON.md),
 # so labels get a vertical offset per integrator to avoid sitting on top of
 # each other; the marker itself always sits at the true apogee point.

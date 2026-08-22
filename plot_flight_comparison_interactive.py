@@ -84,7 +84,7 @@ def main() -> None:
             ))
 
     # Event markers (ignition, burnout, apogee, recovery deploy, touchdown),
-    # matching the ones already shown in the GIF. Several events land close
+    # matching the ones already shown in the animation. Several events land close
     # together across tracks (ignition is the exact same (0, 0) point for
     # all three), so each track gets a different text position to reduce
     # overlap; hovering any marker shows its exact values regardless.

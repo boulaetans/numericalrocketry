@@ -1,8 +1,13 @@
-"""Animated 3D GIF comparing three versions of the same Green Egg flight: this
+"""Animated 3D MP4 comparing three versions of the same Green Egg flight: this
 project's own 6DOF simulation, OpenRocket's own simulated flight, and the real
 logged flight-computer data from the actual launch. Time and altitude are real
 axes; the third axis is categorical (which of the three this is), so the three
 otherwise near-identical curves don't just sit on top of each other.
+
+Rendered directly to MP4 via FFMpegWriter, which encodes each frame at an
+exact, fixed interval, so the file's real-time playback speed always
+matches what --fps and --playback-seconds actually specify, at a fraction
+of the file size a comparable frame-by-frame image sequence would need.
 
 Each track's own mission events (ignition, burnout, apogee, recovery deploy,
 touchdown) are marked on that track as the animation reaches them. The
@@ -20,10 +25,10 @@ deploy has no detectable signature at all in this sensor's data and is left
 unmarked rather than guessed.
 
 Usage (from the project root, with the venv active):
-    .venv\\Scripts\\python.exe animate_flight_comparison.py [--output FILE.gif] [--fps N]
+    .venv\\Scripts\\python.exe animate_flight_comparison.py [--output FILE.mp4] [--fps N]
 
 Reads its reference data from data/Green Eggs OpenRocket Flight.csv and
-data/Green Eggs Real Flight.csv, and writes to assets/flight_comparison.gif by default.
+data/Green Eggs Real Flight.csv, and writes to assets/flight_comparison.mp4 by default.
 """
 
 from __future__ import annotations
@@ -41,7 +46,7 @@ matplotlib.use("Agg")
 import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.animation import FuncAnimation, PillowWriter
+from matplotlib.animation import FFMpegWriter, FuncAnimation
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 (registers the 3d projection)
 
 from numericalrocketry.simulation.integrator import SimulationConfig, run_6dof_rk4
@@ -251,10 +256,10 @@ def build_time_schedule(t_min: float, t_max: float, fps: int, playback_seconds: 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", default="assets/flight_comparison.gif")
-    parser.add_argument("--fps", type=int, default=20)
+    parser.add_argument("--output", default="assets/flight_comparison.mp4")
+    parser.add_argument("--fps", type=int, default=60)
     parser.add_argument("--playback-seconds", type=float, default=None, help="Real-world seconds the main sweep takes to play (default: real time, i.e. one second of playback per second of flight)")
-    parser.add_argument("--hold-seconds", type=float, default=3.0, help="Pause after the last touchdown before the GIF loops")
+    parser.add_argument("--hold-seconds", type=float, default=3.0, help="Pause after the last touchdown before the animation loops/ends")
     args = parser.parse_args()
 
     tracks = [
@@ -363,13 +368,18 @@ def main() -> None:
 
         time_text.set_text(f"t = {t:5.2f} s")
         # Slow continuous rotation, timed to wrap exactly at the loop point so the
-        # GIF spins seamlessly when it repeats.
+        # camera angle spins seamlessly if the video is looped.
         azim = -60.0 + 360.0 * (frame_index / len(t_schedule))
         ax.view_init(elev=18, azim=azim)
         return artists
 
     anim = FuncAnimation(fig, update, frames=len(t_schedule), interval=1000 / args.fps, blit=False)
-    anim.save(args.output, writer=PillowWriter(fps=args.fps))
+    # crf 24 keeps the file under GitHub's undocumented inline-preview size
+    # limit, well below the repo's general 100 MB storage cap.
+    writer = FFMpegWriter(fps=args.fps, codec="libx264",
+                           extra_args=["-pix_fmt", "yuv420p", "-crf", "24", "-preset", "slow",
+                                        "-movflags", "+faststart"])
+    anim.save(args.output, writer=writer)
     plt.close(fig)
     print(f"Wrote {args.output} ({len(t_schedule)} frames @ {args.fps} fps, "
           f"{len(t_schedule) / args.fps:.1f}s playback covering {t_max - t_min:.1f}s of flight)")
