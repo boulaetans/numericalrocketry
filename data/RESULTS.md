@@ -17,12 +17,12 @@ separate table, since that comparison only covers ascent (the 1D model has no re
 | Rail clear | t = 0.256 s | t = 0.256 s | not recoverable from this log | exact | n/a |
 | Burnout | t = 0.81 s | t = 0.81 s | t ≈ 1.42 s *(est.)* | exact | 42.92% |
 | Apogee altitude | 101.30 m | 101.29 m | 115.67 m | +0.01 m (0.01%) | -14.37 m (12.42%) |
-| Apogee time | 4.7662 s | 4.766 s | 6.06 s | ~0.2 ms | -1.294 s (21.35%) |
+| Apogee time | 4.766 s | 4.766 s | 6.06 s | ~0.2 ms | -1.294 s (21.35%) |
 | Max velocity | 45.53 m/s | 45.53 m/s | 42.35 m/s *(re-derived, see README note)* | ~0.005 m/s (0.01%) | +3.18 m/s (7.51%) |
-| Recovery deploy | 5.8163 s | 5.811 s | not detectable in this log | ~5 ms | n/a |
+| Recovery deploy | 5.816 s | 5.811 s | not detectable in this log | ~5 ms | n/a |
 | Touchdown | 27.116 s | 27.194 s | t = 42.36 s *(corrected, see note)* | -0.08 s (0.29%) | -15.24 s (35.99%) |
-| Liftoff mass | 166.041 g | 166 g | not measured | +0.04 g (0.03%) | n/a |
-| CG location | 35.52 cm | 35.7 cm | not measured | -0.18 cm (0.50%) | n/a |
+| Liftoff mass | 166 g | 166 g | not measured | +0.04 g (0.02%) | n/a |
+| CG location | 35.5 cm | 35.7 cm | not measured | -0.18 cm (0.49%) | n/a |
 
 The **NR vs. Real gap** column is the "real flight vs. simulation" comparison discussed in the README's Results section. Apogee altitude's 12.42% gap is the number behind that discussion of dynamic-pressure/altimeter error, not a simulator inaccuracy (both NumericalRocketry and OpenRocket agree with each other to 0.01%, see above). Ignition, rail clear, recovery deploy, liftoff mass, and CG have no real-flight measurement to compare against, so there is no percentage to compute for those rows.
 

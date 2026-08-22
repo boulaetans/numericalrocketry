@@ -63,7 +63,7 @@ These are the apogee, peak velocity, and touchdown results compared directly wit
 | Metric          | NumericalRocketry | OpenRocket | Gap                |
 | --------------- | ----------------- | ---------- | ------------------ |
 | Apogee altitude | 101.30 m          | 101.29 m   | +0.01 m (0.01%)    |
-| Apogee time     | 4.7663 s          | 4.766 s    | ~1 ms              |
+| Apogee time     | 4.766 s           | 4.766 s    | ~0.2 ms            |
 | Max velocity    | 45.53 m/s         | 45.53 m/s  | ~0.005 m/s (0.01%) |
 | Touchdown       | 27.116 s          | 27.194 s   | -0.08 s (0.29%)    |
 
