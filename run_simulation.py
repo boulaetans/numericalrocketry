@@ -53,6 +53,7 @@ def main() -> None:
     altitude_m = [float(p[2]) for p in history["position_world_m"]]
     vertical_velocity_m_s = [float(v[2]) for v in history["velocity_world_m_s"]]
     time_s = history["time_s"]
+    vertical_acceleration_m_s2 = np.gradient(vertical_velocity_m_s, time_s)
 
     apogee_m = max(altitude_m)
     apogee_time_s = time_s[altitude_m.index(apogee_m)]
@@ -67,11 +68,11 @@ def main() -> None:
     print(f"Recovery deploy: {events['recovery_deploy_time_s']}")
     print(f"Touchdown:       {events['touchdown_time_s']}")
 
-    out_path = "simulation_results.csv"
+    out_path = "data/Green Eggs NumericalRocketry Flight.csv"
     with open(out_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["time_s", "altitude_m", "vertical_velocity_m_s", "phase", "static_margin_cal"])
-        for row in zip(time_s, altitude_m, vertical_velocity_m_s, history["phase"], history["static_margin_cal"]):
+        writer.writerow(["time_s", "phase", "altitude_m", "vertical_velocity_m_s", "vertical_acceleration_m_s2"])
+        for row in zip(time_s, history["phase"], altitude_m, vertical_velocity_m_s, vertical_acceleration_m_s2):
             writer.writerow(row)
     print(f"Full time history written to {out_path}")
 
